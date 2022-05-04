@@ -1,5 +1,7 @@
 #include <isa.h>
 #include <cpu/cpu.h>
+#include <memory/paddr.h>
+#include <memory/vaddr.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
@@ -34,10 +36,18 @@ static int cmd_c(char *args) {
 
 
 static int cmd_q(char *args) {
+  nemu_state.state = NEMU_QUIT;
+  cpu_exec(0);
   return -1;
 }
 
 static int cmd_help(char *args);
+static int cmd_si(char *args);
+static int cmd_info(char *args);
+static int cmd_x(char *args);
+static int cmd_p(char *args);
+static int cmd_w(char *args);
+static int cmd_d(char *args);
 
 static struct {
   const char *name;
@@ -47,7 +57,12 @@ static struct {
   { "help", "Display informations about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-
+  { "si", "si [N]", cmd_si },
+  { "info", "info SUBCMD {r or w}", cmd_info },
+  { "x", "x N EXPR ", cmd_x },
+  { "p", "p EXPR", cmd_p },
+  { "w", "w EXPR", cmd_w },
+  { "d", "d 2 ", cmd_d },
   /* TODO: Add more commands */
 
 };
@@ -74,6 +89,86 @@ static int cmd_help(char *args) {
     }
     printf("Unknown command '%s'\n", arg);
   }
+  return 0;
+}
+
+static int cmd_si(char *args) {
+    /* extract the first argument */
+  char *arg = strtok(NULL, " ");
+  int n;
+
+  if (arg == NULL) {
+    /* no argument given , step continue 1*/
+    n = 1;
+  }
+  else {
+    n = atoi(arg);
+  }
+  cpu_exec(n);
+  return 0;
+}
+
+static int cmd_info(char *args)
+{
+    /* extract the first argument */
+  char *arg = strtok(NULL, " ");
+  if (arg == NULL) {
+    /* no argument given , step continue 1*/
+    printf("command invalid, info r info w");
+    return -1;
+  }
+
+  if (strcmp(arg, "r") == 0) {
+      isa_reg_display();
+  } else {
+      printf("unsupported cmd\n");
+  }
+
+  return 0;
+}
+
+static int cmd_x(char *args)
+{
+  char *arg = strtok(NULL, " ");
+  if (arg == NULL) {
+    /* no argument given , step continue 1*/
+    printf("command invalid, x n $expr");
+    return -1;
+  } 
+  int n = atoi(arg);
+  n = n << 2;
+  arg = strtok(NULL, " ");
+
+  if (strlen(arg) <= 2) {
+    printf("command invalid, x n $expr");
+  }
+  paddr_t addr = strtol(arg + 2, NULL, 16);
+  printf("0x%x: ", addr);
+  for (int i = 0; i < n; i++) {
+    word_t word = paddr_read(addr + i, 1);
+    printf("0x%x ",word);
+    if ((i+1) % 4 == 0 && (i+1) < n) {
+      printf("\n0x%x: ", addr + i + 1 );
+    }
+  }
+
+  printf("\n");
+
+  return 0;
+}
+
+static int cmd_p(char *args)
+{
+  return 0;
+}
+
+static int cmd_w(char *args)
+{
+  return 0;
+}
+
+static int cmd_d(char *args)
+{
   return 0;
 }
 
